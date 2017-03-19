@@ -21,7 +21,7 @@ parser.add_argument('-p', action="store", dest="p", type=int)
 parser.add_argument('-i', action="store", dest="i")
 args = parser.parse_args()
 
-if 1024 < args.p < 65536:  # args.p > 1024 and args.p < 65536:
+if 1024 < args.p < 65536:
         unformatted_port = r''.join(hex(b)[2:4] for b in pack('!i', args.p))
         delim = r'\x'
         port += delim + unformatted_port[2:4] + delim + unformatted_port[4:8]
