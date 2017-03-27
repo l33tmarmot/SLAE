@@ -1,12 +1,12 @@
 ;
 ; Student ID:SLAE-860
-; Assignment 4
+; Assignment 4 - Custom Encoder
 ; Usage:  1.  Paste shellcode into "RawShellcode", compile and run with no arguments
 ;               Three files should be output:  raw.hex, enc.hex, and key.hex
 ;                   raw.hex = your original shellcode
 ;                   key.hex = the rdrand-generated key
 ;                   enc.hex = your encoded shellcode
-;         2.  Run shconfig4.py with the following required arguments:  -k key.hex -e enc.hex
+
 
 
 global _start
@@ -84,7 +84,7 @@ step3:
         call writefile
         call cleanup
 
-section .data
+section .data                   ; RawShellcode is our good friend, the execve-stack shellcode
         RawShellcode:   db 0x31,0xc0,0x50,0x68,0x2f,0x2f,0x73,0x68,0x68,0x2f,0x62,0x69,0x6e,0x89,0xe3,0x50,0x89,0xe2,0x53,0x89,0xe1,0xb0,0x0b,0xcd,0x80
         Rlen            equ $-RawShellcode
         keyfile:        db 'key.hex', 0
@@ -93,4 +93,5 @@ section .data
         errmsg:         db 'Syscall failed! Exiting...', 0xA, 0x0
         errlen          equ $-errmsg
 section .bss
-        Key:            resb Rlen  ; Hopefully this should = the number of bytes for RawShellcode
+        Key:            resb Rlen  ; Key and Shellcode must be the same size as each byte is encoded
+                                   ; with a new pseudorandom byte via rdrand.
