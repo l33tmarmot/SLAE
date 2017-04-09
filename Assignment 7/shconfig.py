@@ -2,7 +2,9 @@
 # Student ID:SLAE-860
 # Assignment 7
 #
+
 import argparse
+import subprocess
 from random import randint
 
 def count_shellcode_bytes_in_file(filename, chunksize=1):
@@ -15,7 +17,6 @@ def count_shellcode_bytes_in_file(filename, chunksize=1):
             else:
                 return chunkcount
 
-
 # Yield a certain number of bytes from a file
 def get_bytes_from_file(filename, chunksize=1):
     with open(filename, "rb") as f:
@@ -27,7 +28,6 @@ def get_bytes_from_file(filename, chunksize=1):
             else:
                 break
 
-
 # Return a list with each delimiter+byte in string form
 def get_hex_string(delimiter, filename):
     stringified_bytes = []
@@ -36,7 +36,6 @@ def get_hex_string(delimiter, filename):
         hex_byte_val = delimiter + "{0:02x}".format(b)
         stringified_bytes.append(hex_byte_val)
     return stringified_bytes
-
 
 def create_decoder_shellcode(egg, encoded_bytes, delimiter):
     if delimiter == r'0x':
@@ -55,31 +54,29 @@ def create_decoder_shellcode(egg, encoded_bytes, delimiter):
 
     return output
 
+def create_decryption_source(d_params):
 
-def create_decryption_source():
-    pass
+    c_decl_decrypt = '\tAES128_CBC_decrypt_buffer(buffer+0, in+0,  16, key, iv);\n'
+    for chunk in range(1, d_params['chunks']):
+        c_decl_decrypt += '\tAES128_CBC_decrypt_buffer(buffer+{0}, in+{0}, 16, 0, 0);\n'.format(chunk * 16)
+    c_enc_shellcode = d_params['encrypted_shellcode'] + '\n\n'
+    c_main_opening = r"main()" + '\n' + '{' + '\n'
+    c_main_closing = '}\n'
+    c_execute_shellcode = '\t\n' + r'printf("Shellcode Length:  %d\n", strlen(buffer));' + '\n\t' + \
+                          'int (*ret)() = (int(*)())buffer;\n\t' + \
+                          "ret();\n"
 
+    source_code_list = [ d_params['header'], d_params['key'], d_params['iv'], d_params['buffer'],
+                        c_enc_shellcode, c_main_opening, c_decl_decrypt, c_execute_shellcode, c_main_closing ]
 
-def create_encryption_source(decoder_stub_size, encryption_key):
-    # uint8_t
-    # key[] = {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c};
-    # uint8_t
-    # iv[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
-    # uint8_t in [] = {0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
-    #                  0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
-    #                  0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
-    #                  0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10};
-    # uint8_t
-    # out[] = {0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
-    #          0x50, 0x86, 0xcb, 0x9b, 0x50, 0x72, 0x19, 0xee, 0x95, 0xdb, 0x11, 0x3a, 0x91, 0x76, 0x78, 0xb2,
-    #          0x73, 0xbe, 0xd6, 0xb8, 0xe3, 0xc1, 0x74, 0x3b, 0x71, 0x16, 0xe6, 0x9e, 0x22, 0x22, 0x95, 0x16,
-    #          0x3f, 0xf1, 0xca, 0xa1, 0x68, 0x1f, 0xac, 0x09, 0x12, 0x0e, 0xca, 0x30, 0x75, 0x86, 0xe1, 0xa7};
-    # uint8_t
-    # buffer[64];
-    #
-    # AES128_CBC_encrypt_buffer(buffer, in, 64, key, iv);
+    with open('shellcode.c', mode='w') as fp_decrypt_source:
+        fp_decrypt_source.writelines(source_code_list)
+
+def create_source_files(decoder_stub_size, encryption_key):
+
     if decoder_stub_size % 16 == 0:
         buffer_size = decoder_stub_size
+        chunks = 1
     else:
         chunks = (decoder_stub_size // 16) + 1
         buffer_size = chunks * 16
@@ -98,15 +95,38 @@ def create_encryption_source(decoder_stub_size, encryption_key):
     decoder_shellcode = create_decoder_shellcode(byte_order_egg_string, byte_string_dict['enc.hex'], r'0x')
     c_decl_in = 'uint8_t in[] = { ' + decoder_shellcode + ' }; \n\n'
 
-    c_buffer_decl = 'uint8_t buffer[{0}];\n'.format(buffer_size)
+    c_buffer_decl = 'uint8_t buffer[{0}];\n\n'.format(buffer_size)
 
     c_header = "#include <stdio.h>" + '\n' + "#include <string.h>" + '\n' + r'#include "aes.c"' + '\n\n' \
                + '#define CBC 1\n#define ECB 0\n\n'
 
-    c_body = r"main()" + '\n' + '{' + '\n\n' \
-             + '\t' + 'AES128_CBC_encrypt_buffer(buffer, in, {0}, key, iv); \n\n'.format(buffer_size) + '}'
-    print(c_header + c_decl_key + c_decl_iv + c_decl_in + c_buffer_decl + c_body)
+    c_body = r"main()" + '\n' + '{' + '\n' \
+             + '\t' + 'AES128_CBC_encrypt_buffer(buffer, in, {0}, key, iv); \n'.format(buffer_size) \
+             + '\n'
 
+    c_test = '\tprintf("uint8_t in[] = { ");\n'
+    c_test += '\tint i;\n' + '\tfor (i=0;i <= sizeof(buffer)-1;i++) {\n' + '\t\tif (i == sizeof(buffer) - 1) {\n' \
+              + '\t\t\tprintf("0x%02x", buffer[i]);\n' + '\t\t}\n' + '\t\telse {\n' \
+              + '\t\t\tprintf("0x%02x,", buffer[i]);\n' + '\t\t}\n' + '\t}\n\t' + r'printf(" };\n");' + '\n'
+    c_close = '}\n'
+
+    source_code_list = [c_header, c_decl_key, c_decl_iv, c_decl_in, c_buffer_decl, c_body, c_test, c_close]
+
+    # Write the encryption source file to disk
+    with open('encrypt.c', mode='w') as fp_encrypt_source:
+        fp_encrypt_source.writelines(source_code_list)
+
+    # Compile the source
+    subprocess.check_output("gcc encrypt.c -o encrypt", stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+
+    # Execute the encryption program and capture the encrypted bytes to pass to the shellcode source file
+    encrypted_shellcode_var = subprocess.check_output(
+        "./encrypt", stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+
+    # Do the same thing with the decryption source file
+    decryption_params = { 'header': c_header, 'key': c_decl_key, 'iv': c_decl_iv, 'buffer': c_buffer_decl,
+                          'chunks': chunks, 'buffersize': buffer_size, 'encrypted_shellcode': encrypted_shellcode_var }
+    create_decryption_source(decryption_params)
 
 def create_decoder_only_source():
     c_header = r"#include<stdio.h>" + '\n' + r"#include<string.h>" + '\n\n'
@@ -133,7 +153,6 @@ def create_decoder_only_source():
     print(c_header + c_decl_1 + c_decl_2 + c_body)
 
 
-
 output_formats = {'asm': r'0x', 'c': r"\x"}
 files = ('key.hex', 'enc.hex', 'raw.hex')
 byte_string_dict = {}
@@ -156,7 +175,6 @@ parser.add_argument('--encrypt_with_key',
                     dest="encryption_key",
                     help='Specify encryption key to use:  --encrypt_with_key [key value]')
 
-# TO DO:  add arguments 'encrypt' and 'key'
 args = parser.parse_args()
 delim_char = output_formats[args.fmt]
 
@@ -182,7 +200,7 @@ if args.fmt == 'asm':
     # Add the encoded shellcode size plus the decoder stub + the egg.  Egg & decoder stub are 68 bytes in length.
     buf_size = file_byte_counts['enc.hex'] + 68
 
-    create_encryption_source(buf_size, args.encryption_key)
+    create_source_files(buf_size, args.encryption_key)
 else:
     create_decoder_only_source()
 
