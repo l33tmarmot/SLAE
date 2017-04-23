@@ -1,16 +1,27 @@
 Student ID:SLAE-860
 Assignment 4
 
-Instructions:
-1 - Compile bencoder.nasm using compile.sh and run.  This should output three binary files ending in the extension .hex
+Instructions
+-------------
+
+1 - Compile bencoder.nasm using compile.sh and run.
+
+
+    This should output three binary files ending in the extension .hex
 2 - Run shconfig4.py, specifying the egg value as one argument, and the output format as another argument.
-2a - Example:
+
+
+    Example:
                 ./shconfig4.py -e 1b2a -f c
 3 - The output produced by the python program is a C source file.  For brevity, you can just redirect this to a file.
-3a - Example:
+
+
+    Example:
                 ./shconfig4.py -e 1b2a -f c > shellcode.c
 4 - Compile the output and run.
-4a - Example:
+
+
+    Example:
                 gcc -fno-stack-protector -z execstack shellcode.c -o shellcode
                 ./shellcode
 
