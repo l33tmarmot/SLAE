@@ -2,7 +2,7 @@
 ; Original author: Jean Pascal Pereira <pereira@secbiz.de>
 ; http://shell-storm.org/shellcode/files/shellcode-813.php
 ; Original size:  83 bytes
-; Polymorphic size:  bytes
+; Polymorphic size: 104 bytes
 ; SLAE-860
 ; Assignment 6
 
