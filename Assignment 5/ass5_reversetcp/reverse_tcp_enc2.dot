@@ -1,0 +1,22 @@
+digraph G {
+	//rankdir=LR
+	node [fontname=Courier, labeljust=r];
+	 "0x8aab0b0" [shape=box, label = "0x00417000 DACD                            fcmove st(0),st(5)\l0x00417002 D97424F4                        fstenv [esp-0xc]\l0x00417006 BB7071EE5D                      mov ebx,0x5dee7170\l0x0041700b 5F                              pop edi\l0x0041700c 2BC9                            sub ecx,ecx\l0x0041700e B112                            mov cl,0x12\l"]
+	 "0x8aa9100" [shape=box, label = "0x00417010 315F1A                          xor [edi+0x1a],ebx\l"]
+	 "0x8aa8c20" [shape=box, label = "0x00417013 83EFFC                          sub edi,0xfffffffc\l0x00417016 035F16                          add ebx,[edi+0x16]\l"]
+	 "0x8aa80c0" [shape=box, label = "0x00417019 E2F5                            loop 0xfffffff7\l"]
+	 "0x8aa7a38" [shape=box, label = "0x0041701b 31DB                            xor ebx,ebx\l0x0041701d F7E3                            mul ebx\l0x0041701f 53                              push ebx\l0x00417020 43                              inc ebx\l0x00417021 53                              push ebx\l0x00417022 6A02                            push byte 0x2\l0x00417024 B066                            mov al,0x66\l0x00417026 89E1                            mov ecx,esp\l"]
+	 "0x8aa9b18" [shape=box, style=filled, color=".7 .3 1.0", label = "0x00417028 socket\l"]
+	 "0x8aa9910" [shape=box, label = "0x0041702a 97                              xchg eax,edi\l0x0041702b 5B                              pop ebx\l0x0041702c 68AC100167                      push dword 0x670110ac\l0x00417031 680200115C                      push dword 0x5c110002\l0x00417036 89E1                            mov ecx,esp\l0x00417038 6A66                            push byte 0x66\l0x0041703a 58                              pop eax\l0x0041703b 50                              push eax\l0x0041703c 51                              push ecx\l0x0041703d 57                              push edi\l0x0041703e 89E1                            mov ecx,esp\l0x00417040 43                              inc ebx\l"]
+	 "0x8aa6d38" [shape=box, style=filled, color=".7 .3 1.0", label = "0x00417041 connect\l"]
+	 "0x8aa6b50" [shape=box, label = "0x00417043 B207                            mov dl,0x7\l0x00417045 B900100000                      mov ecx,0x1000\l0x0041704a 89E3                            mov ebx,esp\l0x0041704c C1EB0C                          shr ebx,0xc\l0x0041704f C1E30C                          shl ebx,0xc\l0x00417052 B07D                            mov al,0x7d\l"]
+	 "0x8aab0b0" -> "0x8aa9100" [style = bold ]
+	 "0x8aa9100" -> "0x8aa8c20" [style = bold, color=orange ]
+	 "0x8aa8c20" -> "0x8aa80c0" [style = bold, color=orange ]
+	 "0x8aa80c0" -> "0x8aa9100" [style = bold, color=orange ]
+	 "0x8aa80c0" -> "0x8aa7a38" [style = bold ]
+	 "0x8aa7a38" -> "0x8aa9b18" [style = bold ]
+	 "0x8aa9b18" -> "0x8aa9910" [style = bold ]
+	 "0x8aa9910" -> "0x8aa6d38" [style = bold ]
+	 "0x8aa6d38" -> "0x8aa6b50" [style = bold ]
+}
